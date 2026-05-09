@@ -307,6 +307,9 @@
 <script>
 const DASHBOARD_PASSWORD = "fbw2026";
 
+// Phase 2: paste your deployed Google Apps Script Web App URL here.
+const APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+
 function checkPassword() {
   const input = document.getElementById('gate-input').value;
   const err = document.getElementById('gate-error');
@@ -481,14 +484,39 @@ function renderAnnual(a) {
   ).join('');
 }
 
-function loadData() {
-  // PHASE 2: replace SAMPLE_DATA below with fetch() to your Apps Script Web App URL
-  const data = SAMPLE_DATA;
-  renderHero(data);
-  renderSelectedMonth(data.selectedMonth);
-  renderAnnual(data.annual);
-  const now = new Date();
-  document.getElementById('last-updated-time').textContent = now.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+async function loadData() {
+  const month = document.getElementById('month-pick')?.value || '';
+  const year = document.getElementById('year-pick')?.value || '';
+
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('PASTE_YOUR_APPS_SCRIPT')) {
+    // Fallback while Apps Script is not connected yet.
+    const data = SAMPLE_DATA;
+    renderHero(data);
+    renderSelectedMonth(data.selectedMonth);
+    renderAnnual(data.annual);
+    document.getElementById('last-updated-time').textContent = 'Sample data only — Apps Script URL not connected';
+    return;
+  }
+
+  try {
+    document.getElementById('last-updated-time').textContent = 'Loading live Google Sheet data...';
+    const url = `${APPS_SCRIPT_URL}?month=${encodeURIComponent(month)}&year=${encodeURIComponent(year)}&t=${Date.now()}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.error || 'Apps Script returned an error');
+
+    renderHero(data);
+    renderSelectedMonth(data.selectedMonth);
+    renderAnnual(data.annual);
+
+    const now = data.generatedAt ? new Date(data.generatedAt) : new Date();
+    document.getElementById('last-updated-time').textContent = now.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+  } catch (err) {
+    console.error(err);
+    document.getElementById('last-updated-time').textContent = 'Error loading live data. Check Apps Script URL/deployment.';
+    alert('Dashboard data did not load. Check Apps Script deployment and URL. Error: ' + err.message);
+  }
 }
 
 document.getElementById('month-pick').addEventListener('change', loadData);
