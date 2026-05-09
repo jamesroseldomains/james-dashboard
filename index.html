@@ -89,7 +89,6 @@
   .error-banner code { background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 3px; font-size: 12px; }
   .footer { text-align: center; font-size: 12px; color: #888; padding: 20px; }
   .footer a { color: #1D9E75; text-decoration: none; }
-  .skeleton { color: #ddd; }
 </style>
 </head>
 <body>
@@ -179,7 +178,6 @@
       <option value="2026">2026</option>
       <option value="2027">2027</option>
     </select>
-    <span id="month-status" class="loading"></span>
   </div>
 
   <div class="stat-grid" style="margin-bottom: 18px;">
@@ -240,13 +238,13 @@
   </div>
 
   <div class="stat-grid" style="margin-bottom: 18px;">
-    <div class="stat-card"><div class="stat-label">Total Income (FY)</div><div class="stat-value" id="a-income">—</div></div>
-    <div class="stat-card"><div class="stat-label">Total Expenses (FY)</div><div class="stat-value" id="a-expense">—</div></div>
+    <div class="stat-card"><div class="stat-label">Total Income (YTD)</div><div class="stat-value" id="a-income">—</div></div>
+    <div class="stat-card"><div class="stat-label">Total Expenses (YTD)</div><div class="stat-value" id="a-expense">—</div></div>
     <div class="stat-card"><div class="stat-label">Profit / Loss</div><div class="stat-value positive" id="a-profit">—</div></div>
     <div class="stat-card"><div class="stat-label">Profit Margin</div><div class="stat-value" id="a-margin">—</div></div>
   </div>
 
-  <h3>Monthly Overview <span id="fiscal-label" style="font-weight: 400; color: #888; text-transform: none;"></span></h3>
+  <h3>Monthly Overview</h3>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Month</th><th class="numeric">Income</th><th class="numeric">Expense</th><th class="numeric">Profit</th><th class="numeric">Margin</th></tr></thead>
@@ -257,7 +255,7 @@
 
   <div class="two-col" style="margin-top: 16px;">
     <div>
-      <h3>Top 20 Income Sources (FY)</h3>
+      <h3>Top 20 Income Sources (YTD)</h3>
       <div class="table-wrap">
         <table>
           <thead><tr><th style="width:32px">#</th><th>Category</th><th class="numeric">Amount</th><th class="numeric">%</th></tr></thead>
@@ -266,7 +264,7 @@
       </div>
     </div>
     <div>
-      <h3>Top 20 Expense Sources (FY)</h3>
+      <h3>Top 20 Expense Sources (YTD)</h3>
       <div class="table-wrap">
         <table>
           <thead><tr><th style="width:32px">#</th><th>Category</th><th class="numeric">Amount</th><th class="numeric">%</th></tr></thead>
@@ -287,8 +285,8 @@
 // ============================================================
 // CONFIG — UPDATE THESE TWO VALUES
 // ============================================================
-const DASHBOARD_PASSWORD = "fbw2026";  // <-- CHANGE THIS
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzvcgLw3wKST_NyounR3Dk-uWkFuByTYgU_3h-D-TnPnJtpafTULi9yrxQyGJlA7Cw5LQ/exec";  // <-- PASTE YOUR URL
+const DASHBOARD_PASSWORD = "fbw2026";  // <-- CHANGE THIS to your real password
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzvcgLw3wKST_NyounR3Dk-uWkFuByTYgU_3h-D-TnPnJtpafTULi9yrxQyGJlA7Cw5LQ/exec";  // <-- YOUR URL
 // ============================================================
 
 // Password gate
@@ -332,52 +330,56 @@ const fmtPct = n => {
   return (n * 100).toFixed(2) + '%';
 };
 
-// Status badge
 function setStatus(state, text) {
   const badge = document.getElementById('status-badge');
   badge.className = 'status-badge status-' + state;
   badge.textContent = text;
 }
-
 function showError(msg) {
-  const banner = document.getElementById('error-banner');
   document.getElementById('error-detail').innerHTML = msg;
-  banner.classList.add('show');
+  document.getElementById('error-banner').classList.add('show');
 }
 function hideError() {
   document.getElementById('error-banner').classList.remove('show');
 }
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
-// Render functions
+// Render
 function renderHero(data) {
-  document.getElementById('today-sales').textContent = fmtShort(data.todaySnapshot.today);
-  document.getElementById('yesterday-sales').textContent = fmtShort(data.todaySnapshot.yesterday);
-  document.getElementById('last-7-days').textContent = fmtShort(data.todaySnapshot.last7days);
-  document.getElementById('prev-month-label').textContent = data.prevMonth.label;
-  document.getElementById('prev-month-gross').textContent = fmtShort(data.prevMonth.gross);
+  const ts = data.todaySnapshot || {};
+  const pm = data.prevMonth || {};
+  const cm = data.currMonth || {};
+
+  document.getElementById('today-sales').textContent = fmtShort(ts.today);
+  document.getElementById('yesterday-sales').textContent = fmtShort(ts.yesterday);
+  document.getElementById('last-7-days').textContent = fmtShort(ts.last7days);
+  document.getElementById('prev-month-label').textContent = pm.label || 'Previous Month';
+  document.getElementById('prev-month-gross').textContent = fmtShort(pm.gross);
   const pn = document.getElementById('prev-month-net');
-  pn.textContent = fmtShort(data.prevMonth.net);
-  pn.classList.toggle('negative', data.prevMonth.net < 0);
-  document.getElementById('curr-month-label').textContent = data.currMonth.label;
-  document.getElementById('curr-month-gross').textContent = fmtShort(data.currMonth.gross);
+  pn.textContent = fmtShort(pm.net);
+  pn.classList.toggle('negative', (pm.net || 0) < 0);
+  document.getElementById('curr-month-label').textContent = cm.label || 'Current Month';
+  document.getElementById('curr-month-gross').textContent = fmtShort(cm.gross);
   const cn = document.getElementById('curr-month-net');
-  cn.textContent = fmtShort(data.currMonth.net);
-  cn.classList.toggle('negative', data.currMonth.net < 0);
-  document.getElementById('month-so-far').textContent = fmtShort(data.todaySnapshot.monthSoFar);
-  document.getElementById('month-daily-avg').textContent = fmtShort(data.todaySnapshot.monthDailyAvg);
+  cn.textContent = fmtShort(cm.net);
+  cn.classList.toggle('negative', (cm.net || 0) < 0);
+  document.getElementById('month-so-far').textContent = fmtShort(ts.monthSoFar);
+  document.getElementById('month-daily-avg').textContent = fmtShort(ts.monthDailyAvg);
 }
 
 function renderSelectedMonth(m) {
   if (!m) return;
   document.getElementById('m-total').textContent = fmtShort(m.total);
   document.getElementById('m-avg').textContent = fmtShort(m.avg);
-  document.getElementById('m-days').textContent = m.daysOperated || '—';
+  document.getElementById('m-days').textContent = m.daysOperated || '0';
   document.getElementById('m-best').textContent = fmtShort(m.best);
   document.getElementById('m-worst').textContent = fmtShort(m.worst);
   document.getElementById('m-pnl-income').textContent = fmt(m.income);
   document.getElementById('m-pnl-expense').textContent = fmt(m.expense);
   document.getElementById('m-pnl-profit').textContent = fmt(m.profit);
-  document.getElementById('m-pnl-profit-row').className = 'pnl-row ' + (m.profit >= 0 ? 'profit-row' : 'loss-row');
+  document.getElementById('m-pnl-profit-row').className = 'pnl-row ' + ((m.profit || 0) >= 0 ? 'profit-row' : 'loss-row');
   document.getElementById('m-pnl-margin').textContent = fmtPct(m.margin);
 
   const incHTML = (m.incomeCat || []).map(r =>
@@ -391,7 +393,7 @@ function renderSelectedMonth(m) {
   document.getElementById('m-expense-cat').innerHTML = expHTML || '<tr><td colspan="3" class="loading">No expenses this month</td></tr>';
 
   const dailyHTML = (m.daily || []).map(d =>
-    `<tr><td>${d[0]}</td><td>${escapeHtml(d[1])}</td><td class="numeric ${d[2] === 0 ? 'skeleton' : ''}">${d[2] === 0 ? '—' : fmt(d[2])}</td></tr>`
+    `<tr><td>${d[0]}</td><td>${escapeHtml(d[1])}</td><td class="numeric ${d[2] === 0 ? 'loading' : ''}">${d[2] === 0 ? '—' : fmt(d[2])}</td></tr>`
   ).join('');
   document.getElementById('m-daily').innerHTML = dailyHTML || '<tr><td colspan="3" class="loading">No daily data</td></tr>';
 }
@@ -402,27 +404,23 @@ function renderAnnual(a) {
   document.getElementById('a-expense').textContent = fmtShort(a.totalExpense);
   const ap = document.getElementById('a-profit');
   ap.textContent = fmtShort(a.profit);
-  ap.className = 'stat-value ' + (a.profit >= 0 ? 'positive' : 'negative');
+  ap.className = 'stat-value ' + ((a.profit || 0) >= 0 ? 'positive' : 'negative');
   document.getElementById('a-margin').textContent = fmtPct(a.margin);
   document.getElementById('goal-text').textContent = fmtShort(a.goal);
   const fillPct = Math.max(0, Math.min(100, (a.progress || 0) * 100));
   document.getElementById('goal-fill').style.width = fillPct + '%';
   document.getElementById('goal-current').textContent = fmt(a.profit) + ' earned (' + fmtPct(a.progress) + ')';
-  const remaining = a.goal - a.profit;
+  const remaining = (a.goal || 0) - (a.profit || 0);
   document.getElementById('goal-remaining').textContent = (remaining > 0 ? fmt(remaining) + ' to go' : 'Goal reached!');
 
-  if (a.fiscalYear) {
-    document.getElementById('fiscal-label').textContent = '(FY' + a.fiscalYear + ': Aug ' + (a.fiscalYear - 1) + ' – Jul ' + a.fiscalYear + ')';
-  }
-
-  const rows = (a.monthly || []).map(r =>
+  const monthlyRows = (a.monthly || []).map(r =>
     `<tr><td>${escapeHtml(r[0])}</td><td class="numeric">${fmt(r[1])}</td><td class="numeric">${fmt(r[2])}</td><td class="numeric ${r[3] >= 0 ? 'pos' : 'neg'}">${fmt(r[3])}</td><td class="numeric">${fmtPct(r[4])}</td></tr>`
   ).join('');
-  document.getElementById('monthly-overview').innerHTML = rows || '<tr><td colspan="5" class="loading">No data</td></tr>';
+  document.getElementById('monthly-overview').innerHTML = monthlyRows || '<tr><td colspan="5" class="loading">No data</td></tr>';
 
-  const ti = (a.monthly || []).reduce((s, r) => s + r[1], 0);
-  const te = (a.monthly || []).reduce((s, r) => s + r[2], 0);
-  const tp = (a.monthly || []).reduce((s, r) => s + r[3], 0);
+  const ti = (a.monthly || []).reduce((s, r) => s + (r[1] || 0), 0);
+  const te = (a.monthly || []).reduce((s, r) => s + (r[2] || 0), 0);
+  const tp = (a.monthly || []).reduce((s, r) => s + (r[3] || 0), 0);
   const tm = ti > 0 ? tp / ti : 0;
   document.getElementById('monthly-overview-foot').innerHTML =
     `<tr><td>TOTAL</td><td class="numeric">${fmt(ti)}</td><td class="numeric">${fmt(te)}</td><td class="numeric ${tp >= 0 ? 'pos' : 'neg'}">${fmt(tp)}</td><td class="numeric">${fmtPct(tm)}</td></tr>`;
@@ -436,68 +434,55 @@ function renderAnnual(a) {
   ).join('') || '<tr><td colspan="4" class="loading">No data</td></tr>';
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-// Fetch data from Apps Script
-async function fetchAPI(params = '') {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('PASTE_YOUR')) {
-    throw new Error('APPS_SCRIPT_URL is not configured. Edit index.html and replace PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE with your deployed Web App URL.');
-  }
-  const url = APPS_SCRIPT_URL + (params ? (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + params : '');
-  const res = await fetch(url, { method: 'GET' });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'Unknown error from Apps Script');
-  return json.data;
-}
-
-// Load all data
+// Fetch data
 async function loadData() {
   hideError();
   setStatus('loading', 'Loading…');
   document.getElementById('refresh-btn').disabled = true;
 
   try {
-    const monthSel = parseInt(document.getElementById('month-pick').value, 10);
-    const yearSel = parseInt(document.getElementById('year-pick').value, 10);
-    const params = `month=${monthSel}&year=${yearSel}`;
-    const data = await fetchAPI(params);
+    if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('PASTE_YOUR')) {
+      throw new Error('APPS_SCRIPT_URL is not configured. Edit index.html and paste your Apps Script Web App URL.');
+    }
 
+    const month = document.getElementById('month-pick').value;
+    const year = document.getElementById('year-pick').value;
+    const url = `${APPS_SCRIPT_URL}?month=${encodeURIComponent(month)}&year=${encodeURIComponent(year)}&t=${Date.now()}`;
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.error || 'Apps Script returned an error');
+
+    // The Apps Script returns fields at the TOP LEVEL (not wrapped in 'data')
+    // Shape: { ok, todaySnapshot, prevMonth, currMonth, selectedMonth, annual }
     renderHero(data);
     renderSelectedMonth(data.selectedMonth);
     renderAnnual(data.annual);
 
-    // Set picker to actual selected month if returned
-    if (data.selectedMonth && data.selectedMonth.label) {
-      // (already in sync since we sent the params)
-    }
-
-    const now = new Date();
-    document.getElementById('last-updated-time').textContent =
-      now.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    const now = data.generatedAt ? new Date(data.generatedAt) : new Date();
+    document.getElementById('last-updated-time').textContent = now.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
     setStatus('ok', 'Live');
   } catch (err) {
-    setStatus('error', 'Error');
-    showError('<code>' + escapeHtml(err.message) + '</code><br><br>Common fixes:<br>• Make sure APPS_SCRIPT_URL is set in index.html<br>• Verify the Apps Script Web App is deployed with "Anyone" access<br>• Check that Income and Expenses tabs exist in your Sheet');
     console.error(err);
+    setStatus('error', 'Error');
+    showError('<code>' + escapeHtml(err.message) + '</code><br><br>Common fixes:<br>• Make sure APPS_SCRIPT_URL is set correctly<br>• Verify the Apps Script Web App is deployed with "Anyone" access<br>• Check that Income and Expenses tabs exist in your Sheet');
   } finally {
     document.getElementById('refresh-btn').disabled = false;
   }
 }
 
-// Month picker — refetch on change
 document.getElementById('month-pick').addEventListener('change', loadData);
 document.getElementById('year-pick').addEventListener('change', loadData);
 
-// Set picker default to previous month
+// Default month picker to previous month
 const today = new Date();
 const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 document.getElementById('month-pick').value = prevMonthDate.getMonth() + 1;
 document.getElementById('year-pick').value = prevMonthDate.getFullYear();
 
-// Initial load if already unlocked
+// Initial load
 if (sessionStorage.getItem('fbw_unlocked') === 'yes') loadData();
 </script>
 </body>
