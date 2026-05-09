@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FBW Dashboard · James Rosel</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f5f5f0; color: #1a1a1a; line-height: 1.5; padding: 16px; min-height: 100vh;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  .container { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; }
+  .gate-overlay { position: fixed; inset: 0; background: #f5f5f0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .gate-box { background: white; padding: 32px; border-radius: 12px; max-width: 400px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.08); text-align: center; }
+  .gate-box h1 { font-size: 22px; margin-bottom: 8px; color: #1D9E75; }
+  .gate-box p { font-size: 14px; color: #666; margin-bottom: 20px; }
+  .gate-box input { width: 100%; padding: 12px; border: 1px solid #d4d4d0; border-radius: 6px; font-size: 15px; margin-bottom: 12px; font-family: inherit; }
+  .gate-box input:focus { outline: 2px solid #1D9E75; outline-offset: -1px; border-color: #1D9E75; }
+  .gate-box button { width: 100%; padding: 12px; background: #1D9E75; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .gate-box button:hover { background: #0F6E56; }
+  .gate-error { color: #c5524a; font-size: 13px; margin-top: 8px; min-height: 18px; }
+  header { border-bottom: 1px solid #e5e5e0; padding-bottom: 16px; margin-bottom: 20px; }
+  h1 { font-size: 22px; font-weight: 600; }
+  .subtitle { font-size: 13px; color: #666; margin-top: 4px; }
+  .last-updated { font-size: 12px; color: #888; margin-top: 6px; }
+  h2 { font-size: 16px; font-weight: 600; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #e5e5e0; color: #1a1a1a; }
+  h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hero-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .hero-card { background: linear-gradient(135deg, #f9f9f5 0%, #f0f9f4 100%); border-radius: 10px; padding: 16px; border: 1px solid #e5e5e0; }
+  .hero-card.primary { background: linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%); color: white; border: none; }
+  .hero-card.primary .hero-label, .hero-card.primary .hero-sub-label { color: rgba(255,255,255,0.85); }
+  .hero-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 6px; }
+  .hero-value { font-size: 22px; font-weight: 700; line-height: 1.2; }
+  .hero-stack { display: flex; flex-direction: column; gap: 6px; }
+  .hero-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .hero-sub-label { font-size: 11px; color: #666; }
+  .hero-sub-value { font-size: 15px; font-weight: 600; }
+  .hero-sub-value.negative { color: #c5524a; }
+  .hero-card.primary .hero-sub-value.negative { color: #ffd0d0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .stat-card { background: #f9f9f5; border-radius: 8px; padding: 14px; }
+  .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 4px; }
+  .stat-value { font-size: 18px; font-weight: 600; }
+  .stat-sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .stat-value.positive { color: #1D9E75; }
+  .stat-value.negative { color: #c5524a; }
+  .picker-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .picker-row label { font-size: 13px; color: #555; font-weight: 500; }
+  .picker-row select { padding: 8px 12px; border: 1px solid #d4d4d0; border-radius: 6px; font-size: 14px; background: white; font-family: inherit; cursor: pointer; }
+  .picker-row select:focus { outline: 2px solid #1D9E75; outline-offset: -1px; }
+  .table-wrap { overflow-x: auto; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; background: #f5f5f0; font-weight: 600; color: #555; border-bottom: 1px solid #d4d4d0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f0f0eb; }
+  td.numeric, th.numeric { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:hover td { background: #fafaf7; }
+  tfoot td { font-weight: 700; background: #f0f9f4; border-top: 2px solid #1D9E75; }
+  .pos { color: #1D9E75; font-weight: 600; }
+  .neg { color: #c5524a; font-weight: 600; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } .hero-value { font-size: 20px; } h1 { font-size: 19px; } }
+  .pnl-box { background: #f9f9f5; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .pnl-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e5e5e0; font-size: 14px; }
+  .pnl-row:last-child { border-bottom: none; }
+  .pnl-row.profit-row { padding-top: 12px; font-weight: 700; font-size: 15px; color: #1D9E75; }
+  .pnl-row.loss-row { padding-top: 12px; font-weight: 700; font-size: 15px; color: #c5524a; }
+  .goal-box { background: linear-gradient(135deg, #f0f9f4 0%, #e1f5ee 100%); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+  .goal-header { display: flex; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
+  .goal-title { font-size: 13px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+  .goal-amount { font-size: 14px; color: #1D9E75; font-weight: 600; }
+  .progress-bar { height: 12px; background: #d4e8de; border-radius: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; background: #1D9E75; border-radius: 6px; transition: width 0.4s ease; }
+  .goal-footer { display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 8px; }
+  .refresh-btn { background: white; color: #1D9E75; border: 1px solid #1D9E75; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .refresh-btn:hover { background: #f0f9f4; }
+  .loading { color: #aaa; font-style: italic; font-size: 12px; }
+  .placeholder-banner { background: #FAEEDA; border-left: 3px solid #BA7517; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #854F0B; margin-bottom: 16px; }
+  .placeholder-banner strong { color: #633806; }
+  .footer { text-align: center; font-size: 12px; color: #888; padding: 20px; }
+  .footer a { color: #1D9E75; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="gate-overlay" id="gate">
+  <div class="gate-box">
+    <h1>FBW Dashboard</h1>
+    <p>Enter password to continue</p>
+    <input type="password" id="gate-input" placeholder="Password" autocomplete="off">
+    <button onclick="checkPassword()">Unlock</button>
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+</div>
+
+<div class="wrap" id="dashboard" style="display: none;">
+
+<div class="container">
+  <header>
+    <h1>FBW Dashboard — Batasan Hills</h1>
+    <div class="subtitle">Famous Belgian Waffles · Daily, Monthly, and Annual View</div>
+    <div class="last-updated">
+      Last updated: <span id="last-updated-time">—</span>
+      &nbsp;·&nbsp;
+      <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+    </div>
+  </header>
+
+  <div class="placeholder-banner">
+    <strong>Phase 1 Preview:</strong> All numbers shown are sample placeholders. Real data from your Google Sheet will load once Apps Script is wired up in Phase 2.
+  </div>
+
+  <h3>At a glance</h3>
+  <div class="hero-grid">
+    <div class="hero-card">
+      <div class="hero-label">Today's Sales</div>
+      <div class="hero-value" id="today-sales">—</div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-label">Yesterday</div>
+      <div class="hero-value" id="yesterday-sales">—</div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-label">Last 7 Days</div>
+      <div class="hero-value" id="last-7-days">—</div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-label" id="prev-month-label">Previous Month</div>
+      <div class="hero-stack">
+        <div class="hero-row">
+          <span class="hero-sub-label">Gross</span>
+          <span class="hero-sub-value" id="prev-month-gross">—</span>
+        </div>
+        <div class="hero-row">
+          <span class="hero-sub-label">Net</span>
+          <span class="hero-sub-value" id="prev-month-net">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-card primary">
+      <div class="hero-label" id="curr-month-label">Current Month</div>
+      <div class="hero-stack">
+        <div class="hero-row">
+          <span class="hero-sub-label">Gross</span>
+          <span class="hero-sub-value" id="curr-month-gross">—</span>
+        </div>
+        <div class="hero-row">
+          <span class="hero-sub-label">Net</span>
+          <span class="hero-sub-value" id="curr-month-net">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <h2>Today's Snapshot</h2>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">This Month So Far</div>
+      <div class="stat-value" id="month-so-far">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">This Month Daily Avg</div>
+      <div class="stat-value" id="month-daily-avg">—</div>
+      <div class="stat-sub">running avg, day-of-month</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <h2>Month Analysis</h2>
+  <div class="picker-row">
+    <label for="month-pick">Month:</label>
+    <select id="month-pick">
+      <option value="1">January</option><option value="2">February</option>
+      <option value="3">March</option><option value="4" selected>April</option>
+      <option value="5">May</option><option value="6">June</option>
+      <option value="7">July</option><option value="8">August</option>
+      <option value="9">September</option><option value="10">October</option>
+      <option value="11">November</option><option value="12">December</option>
+    </select>
+    <label for="year-pick">Year:</label>
+    <select id="year-pick">
+      <option value="2025">2025</option>
+      <option value="2026" selected>2026</option>
+      <option value="2027">2027</option>
+    </select>
+  </div>
+
+  <div class="stat-grid" style="margin-bottom: 18px;">
+    <div class="stat-card"><div class="stat-label">Month Total Sales</div><div class="stat-value" id="m-total">—</div></div>
+    <div class="stat-card"><div class="stat-label">Daily Average</div><div class="stat-value" id="m-avg">—</div></div>
+    <div class="stat-card"><div class="stat-label">Days Operated</div><div class="stat-value" id="m-days">—</div></div>
+    <div class="stat-card"><div class="stat-label">Best Day</div><div class="stat-value positive" id="m-best">—</div></div>
+    <div class="stat-card"><div class="stat-label">Slowest Day</div><div class="stat-value negative" id="m-worst">—</div></div>
+  </div>
+
+  <h3>Full P&L (Selected Month)</h3>
+  <div class="pnl-box">
+    <div class="pnl-row"><span>Total Income</span><span id="m-pnl-income">—</span></div>
+    <div class="pnl-row"><span>Total Expenses</span><span id="m-pnl-expense">—</span></div>
+    <div class="pnl-row" id="m-pnl-profit-row"><span>Net Profit</span><span id="m-pnl-profit">—</span></div>
+    <div class="pnl-row" style="border-top: none;"><span>Margin</span><span id="m-pnl-margin">—</span></div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3>Income Breakdown</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Category</th><th class="numeric">Total</th><th class="numeric">%</th></tr></thead>
+          <tbody id="m-income-cat"><tr><td colspan="3" class="loading">No data yet…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h3>Expense Breakdown</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Category</th><th class="numeric">Total</th><th class="numeric">%</th></tr></thead>
+          <tbody id="m-expense-cat"><tr><td colspan="3" class="loading">No data yet…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top: 18px;">Daily Breakdown</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Day</th><th>Date</th><th class="numeric">Sales</th></tr></thead>
+      <tbody id="m-daily"><tr><td colspan="3" class="loading">No data yet…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="container">
+  <h2>Annual Overview</h2>
+
+  <div class="goal-box">
+    <div class="goal-header">
+      <span class="goal-title">Annual Profit Goal</span>
+      <span class="goal-amount" id="goal-text">—</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="goal-fill" style="width: 0%;"></div></div>
+    <div class="goal-footer">
+      <span id="goal-current">—</span>
+      <span id="goal-remaining">—</span>
+    </div>
+  </div>
+
+  <div class="stat-grid" style="margin-bottom: 18px;">
+    <div class="stat-card"><div class="stat-label">Total Income (YTD)</div><div class="stat-value" id="a-income">—</div></div>
+    <div class="stat-card"><div class="stat-label">Total Expenses (YTD)</div><div class="stat-value" id="a-expense">—</div></div>
+    <div class="stat-card"><div class="stat-label">Profit / Loss</div><div class="stat-value positive" id="a-profit">—</div></div>
+    <div class="stat-card"><div class="stat-label">Profit Margin</div><div class="stat-value" id="a-margin">—</div></div>
+  </div>
+
+  <h3>Monthly Overview</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th class="numeric">Income</th>
+          <th class="numeric">Expense</th>
+          <th class="numeric">Profit</th>
+          <th class="numeric">Margin</th>
+        </tr>
+      </thead>
+      <tbody id="monthly-overview"><tr><td colspan="5" class="loading">No data yet…</td></tr></tbody>
+      <tfoot id="monthly-overview-foot"></tfoot>
+    </table>
+  </div>
+
+  <div class="two-col" style="margin-top: 16px;">
+    <div>
+      <h3>Top 20 Income Sources (YTD)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:32px">#</th><th>Category</th><th class="numeric">Amount</th><th class="numeric">%</th></tr></thead>
+          <tbody id="a-top-income"><tr><td colspan="4" class="loading">No data yet…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h3>Top 20 Expense Sources (YTD)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:32px">#</th><th>Category</th><th class="numeric">Amount</th><th class="numeric">%</th></tr></thead>
+          <tbody id="a-top-expense"><tr><td colspan="4" class="loading">No data yet…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Private dashboard · James Rosel · <a href="https://evpilipinas.com">evpilipinas.com</a>
+</div>
+
+</div>
+
+<script>
+const DASHBOARD_PASSWORD = "fbw2026";
+
+function checkPassword() {
+  const input = document.getElementById('gate-input').value;
+  const err = document.getElementById('gate-error');
+  if (input === DASHBOARD_PASSWORD) {
+    sessionStorage.setItem('fbw_unlocked', 'yes');
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadData();
+  } else {
+    err.textContent = 'Incorrect password';
+    document.getElementById('gate-input').value = '';
+  }
+}
+document.getElementById('gate-input').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') checkPassword();
+});
+if (sessionStorage.getItem('fbw_unlocked') === 'yes') {
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+}
+
+const fmt = n => {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  const sign = n < 0 ? '-' : '';
+  return sign + '₱' + Math.round(Math.abs(n)).toLocaleString();
+};
+const fmtShort = n => {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 1000000) return sign + '₱' + (abs/1000000).toFixed(2) + 'M';
+  if (abs >= 1000) return sign + '₱' + Math.round(abs/1000).toLocaleString() + 'K';
+  return sign + '₱' + Math.round(abs).toLocaleString();
+};
+const fmtPct = n => {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return (n * 100).toFixed(2) + '%';
+};
+
+const SAMPLE_DATA = {
+  todaySnapshot: { today: 4250, yesterday: 5800, last7days: 38420, monthSoFar: 41250, monthDailyAvg: 5156 },
+  prevMonth: { label: 'April 2026', gross: 155022, net: -15864 },
+  currMonth: { label: 'May 2026', gross: 41250, net: -5990 },
+  selectedMonth: {
+    total: 155021.87, avg: 5167.40, daysOperated: 30, best: 7704, worst: 2680,
+    income: 155021.87, expense: 170886.00, profit: -15864.13, margin: -0.1023,
+    incomeCat: [
+      { cat: 'Walk-in Cash', amt: 84394, pct: 0.5444 },
+      { cat: 'Grabfood', amt: 40275.87, pct: 0.2598 },
+      { cat: 'Gcash', amt: 28452, pct: 0.1835 },
+      { cat: 'Drinks', amt: 1400, pct: 0.0090 },
+      { cat: 'Gift Check', amt: 500, pct: 0.0032 }
+    ],
+    expenseCat: [
+      { cat: 'COGS', amt: 51546, pct: 0.3017 },
+      { cat: 'Wages & Salary', amt: 26389, pct: 0.1545 },
+      { cat: 'Loan', amt: 22000, pct: 0.1287 },
+      { cat: 'Monthly Dues', amt: 9050, pct: 0.0530 },
+      { cat: 'Personal', amt: 7704, pct: 0.0451 }
+    ],
+    daily: [
+      [1,'1 Apr (Wed)',4500],[2,'2 Apr (Thu)',5200],[3,'3 Apr (Fri)',6100],
+      [4,'4 Apr (Sat)',7704],[5,'5 Apr (Sun)',5800],[6,'6 Apr (Mon)',4200],
+      [7,'7 Apr (Tue)',3800],[8,'8 Apr (Wed)',4900],[9,'9 Apr (Thu)',5400],
+      [10,'10 Apr (Fri)',6800]
+    ]
+  },
+  annual: {
+    totalIncome: 1432563.29, totalExpense: 1290387.10, profit: 142176.19, margin: 0.0992,
+    goal: 600000, progress: 0.2370,
+    monthly: [
+      ['August', 216551.00, 193706.00, 22845.00, 0.1055],
+      ['September', 165243.00, 152055.32, 13187.68, 0.0798],
+      ['October', 144465.00, 171727.50, -27262.50, -0.1887],
+      ['November', 132431.00, 103692.50, 28738.50, 0.2170],
+      ['December', 138293.36, 117793.59, 20499.77, 0.1482],
+      ['January', 165940.97, 134155.00, 31785.97, 0.1915],
+      ['February', 158060.85, 130660.00, 27400.85, 0.1734],
+      ['March', 156556.24, 109721.09, 46835.15, 0.2992],
+      ['April', 155021.87, 170886.00, -15864.13, -0.1023]
+    ],
+    topIncome: [
+      ['Walk-in Cash', 990060.80, 0.6911],
+      ['Gcash', 279064.00, 0.1948],
+      ['Grabfood', 158329.49, 0.1105],
+      ['Drinks', 4439.00, 0.0031],
+      ['Gift Check', 500.00, 0.0003],
+      ['Maribank', 170.00, 0.0001]
+    ],
+    topExpense: [
+      ['COGS', 465085.10, 0.3604],
+      ['Wages & Salary', 255860.00, 0.1983],
+      ['Loan', 207510.51, 0.1608],
+      ['Store Upgrades', 85138.00, 0.0660],
+      ['Monthly Dues', 74500.00, 0.0577],
+      ['Personal', 48573.13, 0.0376],
+      ['COGS Outsource', 39536.80, 0.0306],
+      ['Spearhead POS', 37500.00, 0.0291],
+      ['Taxes', 20521.00, 0.0159],
+      ['Office Supplies', 20491.56, 0.0159]
+    ]
+  }
+};
+
+function renderHero(data) {
+  document.getElementById('today-sales').textContent = fmtShort(data.todaySnapshot.today);
+  document.getElementById('yesterday-sales').textContent = fmtShort(data.todaySnapshot.yesterday);
+  document.getElementById('last-7-days').textContent = fmtShort(data.todaySnapshot.last7days);
+  document.getElementById('prev-month-label').textContent = data.prevMonth.label;
+  document.getElementById('prev-month-gross').textContent = fmtShort(data.prevMonth.gross);
+  const pn = document.getElementById('prev-month-net');
+  pn.textContent = fmtShort(data.prevMonth.net);
+  pn.classList.toggle('negative', data.prevMonth.net < 0);
+  document.getElementById('curr-month-label').textContent = data.currMonth.label;
+  document.getElementById('curr-month-gross').textContent = fmtShort(data.currMonth.gross);
+  const cn = document.getElementById('curr-month-net');
+  cn.textContent = fmtShort(data.currMonth.net);
+  cn.classList.toggle('negative', data.currMonth.net < 0);
+  document.getElementById('month-so-far').textContent = fmtShort(data.todaySnapshot.monthSoFar);
+  document.getElementById('month-daily-avg').textContent = fmtShort(data.todaySnapshot.monthDailyAvg);
+}
+
+function renderSelectedMonth(m) {
+  document.getElementById('m-total').textContent = fmtShort(m.total);
+  document.getElementById('m-avg').textContent = fmtShort(m.avg);
+  document.getElementById('m-days').textContent = m.daysOperated || '—';
+  document.getElementById('m-best').textContent = fmtShort(m.best);
+  document.getElementById('m-worst').textContent = fmtShort(m.worst);
+  document.getElementById('m-pnl-income').textContent = fmt(m.income);
+  document.getElementById('m-pnl-expense').textContent = fmt(m.expense);
+  document.getElementById('m-pnl-profit').textContent = fmt(m.profit);
+  document.getElementById('m-pnl-profit-row').className = 'pnl-row ' + (m.profit >= 0 ? 'profit-row' : 'loss-row');
+  document.getElementById('m-pnl-margin').textContent = fmtPct(m.margin);
+  document.getElementById('m-income-cat').innerHTML = m.incomeCat.map(r =>
+    `<tr><td>${r.cat}</td><td class="numeric">${fmt(r.amt)}</td><td class="numeric">${fmtPct(r.pct)}</td></tr>`
+  ).join('') || '<tr><td colspan="3" class="loading">No data</td></tr>';
+  document.getElementById('m-expense-cat').innerHTML = m.expenseCat.map(r =>
+    `<tr><td>${r.cat}</td><td class="numeric">${fmt(r.amt)}</td><td class="numeric">${fmtPct(r.pct)}</td></tr>`
+  ).join('') || '<tr><td colspan="3" class="loading">No data</td></tr>';
+  document.getElementById('m-daily').innerHTML = m.daily.map(d =>
+    `<tr><td>${d[0]}</td><td>${d[1]}</td><td class="numeric">${fmt(d[2])}</td></tr>`
+  ).join('') || '<tr><td colspan="3" class="loading">No data</td></tr>';
+}
+
+function renderAnnual(a) {
+  document.getElementById('a-income').textContent = fmtShort(a.totalIncome);
+  document.getElementById('a-expense').textContent = fmtShort(a.totalExpense);
+  const ap = document.getElementById('a-profit');
+  ap.textContent = fmtShort(a.profit);
+  ap.className = 'stat-value ' + (a.profit >= 0 ? 'positive' : 'negative');
+  document.getElementById('a-margin').textContent = fmtPct(a.margin);
+  document.getElementById('goal-text').textContent = fmtShort(a.goal);
+  const fillPct = Math.max(0, Math.min(100, a.progress * 100));
+  document.getElementById('goal-fill').style.width = fillPct + '%';
+  document.getElementById('goal-current').textContent = fmt(a.profit) + ' earned (' + fmtPct(a.progress) + ')';
+  const remaining = a.goal - a.profit;
+  document.getElementById('goal-remaining').textContent = (remaining > 0 ? fmt(remaining) + ' to go' : 'Goal reached!');
+  document.getElementById('monthly-overview').innerHTML = a.monthly.map(r =>
+    `<tr><td>${r[0]}</td><td class="numeric">${fmt(r[1])}</td><td class="numeric">${fmt(r[2])}</td><td class="numeric ${r[3] >= 0 ? 'pos' : 'neg'}">${fmt(r[3])}</td><td class="numeric">${fmtPct(r[4])}</td></tr>`
+  ).join('');
+  const ti = a.monthly.reduce((s, r) => s + r[1], 0);
+  const te = a.monthly.reduce((s, r) => s + r[2], 0);
+  const tp = a.monthly.reduce((s, r) => s + r[3], 0);
+  const tm = ti > 0 ? tp / ti : 0;
+  document.getElementById('monthly-overview-foot').innerHTML =
+    `<tr><td>TOTAL</td><td class="numeric">${fmt(ti)}</td><td class="numeric">${fmt(te)}</td><td class="numeric ${tp >= 0 ? 'pos' : 'neg'}">${fmt(tp)}</td><td class="numeric">${fmtPct(tm)}</td></tr>`;
+  document.getElementById('a-top-income').innerHTML = a.topIncome.map((r, i) =>
+    `<tr><td>${i+1}</td><td>${r[0]}</td><td class="numeric">${fmt(r[1])}</td><td class="numeric">${fmtPct(r[2])}</td></tr>`
+  ).join('');
+  document.getElementById('a-top-expense').innerHTML = a.topExpense.map((r, i) =>
+    `<tr><td>${i+1}</td><td>${r[0]}</td><td class="numeric">${fmt(r[1])}</td><td class="numeric">${fmtPct(r[2])}</td></tr>`
+  ).join('');
+}
+
+function loadData() {
+  // PHASE 2: replace SAMPLE_DATA below with fetch() to your Apps Script Web App URL
+  const data = SAMPLE_DATA;
+  renderHero(data);
+  renderSelectedMonth(data.selectedMonth);
+  renderAnnual(data.annual);
+  const now = new Date();
+  document.getElementById('last-updated-time').textContent = now.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+document.getElementById('month-pick').addEventListener('change', loadData);
+document.getElementById('year-pick').addEventListener('change', loadData);
+
+if (sessionStorage.getItem('fbw_unlocked') === 'yes') loadData();
+</script>
+</body>
+</html>
