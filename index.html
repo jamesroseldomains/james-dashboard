@@ -26,7 +26,7 @@
   header { border-bottom: 1px solid #e5e5e0; padding-bottom: 16px; margin-bottom: 20px; }
   h1 { font-size: 22px; font-weight: 600; }
   .subtitle { font-size: 13px; color: #666; margin-top: 4px; }
-  .last-updated { font-size: 12px; color: #888; margin-top: 6px; }
+  .last-updated { font-size: 12px; color: #888; margin-top: 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   h2 { font-size: 16px; font-weight: 600; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #e5e5e0; color: #1a1a1a; }
   h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
   .hero-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
@@ -77,11 +77,19 @@
   .goal-footer { display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 8px; }
   .refresh-btn { background: white; color: #1D9E75; border: 1px solid #1D9E75; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; }
   .refresh-btn:hover { background: #f0f9f4; }
+  .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .loading { color: #aaa; font-style: italic; font-size: 12px; }
-  .placeholder-banner { background: #FAEEDA; border-left: 3px solid #BA7517; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #854F0B; margin-bottom: 16px; }
-  .placeholder-banner strong { color: #633806; }
+  .status-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 500; }
+  .status-loading { background: #FAEEDA; color: #854F0B; }
+  .status-ok { background: #E1F5EE; color: #0F6E56; }
+  .status-error { background: #fbe6e3; color: #c5524a; }
+  .error-banner { background: #fbe6e3; border-left: 3px solid #c5524a; padding: 12px 14px; border-radius: 4px; font-size: 13px; color: #8a3530; margin-bottom: 16px; display: none; }
+  .error-banner.show { display: block; }
+  .error-banner strong { color: #6b2723; }
+  .error-banner code { background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 3px; font-size: 12px; }
   .footer { text-align: center; font-size: 12px; color: #888; padding: 20px; }
   .footer a { color: #1D9E75; text-decoration: none; }
+  .skeleton { color: #ddd; }
 </style>
 </head>
 <body>
@@ -103,14 +111,15 @@
     <h1>FBW Dashboard — Batasan Hills</h1>
     <div class="subtitle">Famous Belgian Waffles · Daily, Monthly, and Annual View</div>
     <div class="last-updated">
-      Last updated: <span id="last-updated-time">—</span>
-      &nbsp;·&nbsp;
-      <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+      <span id="status-badge" class="status-badge status-loading">Loading…</span>
+      <span>Last updated: <span id="last-updated-time">—</span></span>
+      <button class="refresh-btn" id="refresh-btn" onclick="loadData()">↻ Refresh</button>
     </div>
   </header>
 
-  <div class="placeholder-banner">
-    <strong>Phase 1 Preview:</strong> All numbers shown are sample placeholders. Real data from your Google Sheet will load once Apps Script is wired up in Phase 2.
+  <div class="error-banner" id="error-banner">
+    <strong>Couldn't load data.</strong>
+    <div id="error-detail" style="margin-top:6px;"></div>
   </div>
 
   <h3>At a glance</h3>
@@ -130,27 +139,15 @@
     <div class="hero-card">
       <div class="hero-label" id="prev-month-label">Previous Month</div>
       <div class="hero-stack">
-        <div class="hero-row">
-          <span class="hero-sub-label">Gross</span>
-          <span class="hero-sub-value" id="prev-month-gross">—</span>
-        </div>
-        <div class="hero-row">
-          <span class="hero-sub-label">Net</span>
-          <span class="hero-sub-value" id="prev-month-net">—</span>
-        </div>
+        <div class="hero-row"><span class="hero-sub-label">Gross</span><span class="hero-sub-value" id="prev-month-gross">—</span></div>
+        <div class="hero-row"><span class="hero-sub-label">Net</span><span class="hero-sub-value" id="prev-month-net">—</span></div>
       </div>
     </div>
     <div class="hero-card primary">
       <div class="hero-label" id="curr-month-label">Current Month</div>
       <div class="hero-stack">
-        <div class="hero-row">
-          <span class="hero-sub-label">Gross</span>
-          <span class="hero-sub-value" id="curr-month-gross">—</span>
-        </div>
-        <div class="hero-row">
-          <span class="hero-sub-label">Net</span>
-          <span class="hero-sub-value" id="curr-month-net">—</span>
-        </div>
+        <div class="hero-row"><span class="hero-sub-label">Gross</span><span class="hero-sub-value" id="curr-month-gross">—</span></div>
+        <div class="hero-row"><span class="hero-sub-label">Net</span><span class="hero-sub-value" id="curr-month-net">—</span></div>
       </div>
     </div>
   </div>
@@ -159,15 +156,8 @@
 <div class="container">
   <h2>Today's Snapshot</h2>
   <div class="stat-grid">
-    <div class="stat-card">
-      <div class="stat-label">This Month So Far</div>
-      <div class="stat-value" id="month-so-far">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">This Month Daily Avg</div>
-      <div class="stat-value" id="month-daily-avg">—</div>
-      <div class="stat-sub">running avg, day-of-month</div>
-    </div>
+    <div class="stat-card"><div class="stat-label">This Month So Far</div><div class="stat-value" id="month-so-far">—</div></div>
+    <div class="stat-card"><div class="stat-label">This Month Daily Avg</div><div class="stat-value" id="month-daily-avg">—</div><div class="stat-sub">running avg, day-of-month</div></div>
   </div>
 </div>
 
@@ -177,7 +167,7 @@
     <label for="month-pick">Month:</label>
     <select id="month-pick">
       <option value="1">January</option><option value="2">February</option>
-      <option value="3">March</option><option value="4" selected>April</option>
+      <option value="3">March</option><option value="4">April</option>
       <option value="5">May</option><option value="6">June</option>
       <option value="7">July</option><option value="8">August</option>
       <option value="9">September</option><option value="10">October</option>
@@ -186,9 +176,10 @@
     <label for="year-pick">Year:</label>
     <select id="year-pick">
       <option value="2025">2025</option>
-      <option value="2026" selected>2026</option>
+      <option value="2026">2026</option>
       <option value="2027">2027</option>
     </select>
+    <span id="month-status" class="loading"></span>
   </div>
 
   <div class="stat-grid" style="margin-bottom: 18px;">
@@ -213,7 +204,7 @@
       <div class="table-wrap">
         <table>
           <thead><tr><th>Category</th><th class="numeric">Total</th><th class="numeric">%</th></tr></thead>
-          <tbody id="m-income-cat"><tr><td colspan="3" class="loading">No data yet…</td></tr></tbody>
+          <tbody id="m-income-cat"><tr><td colspan="3" class="loading">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -222,7 +213,7 @@
       <div class="table-wrap">
         <table>
           <thead><tr><th>Category</th><th class="numeric">Total</th><th class="numeric">%</th></tr></thead>
-          <tbody id="m-expense-cat"><tr><td colspan="3" class="loading">No data yet…</td></tr></tbody>
+          <tbody id="m-expense-cat"><tr><td colspan="3" class="loading">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -232,66 +223,54 @@
   <div class="table-wrap">
     <table>
       <thead><tr><th>Day</th><th>Date</th><th class="numeric">Sales</th></tr></thead>
-      <tbody id="m-daily"><tr><td colspan="3" class="loading">No data yet…</td></tr></tbody>
+      <tbody id="m-daily"><tr><td colspan="3" class="loading">Loading…</td></tr></tbody>
     </table>
   </div>
 </div>
 
 <div class="container">
   <h2>Annual Overview</h2>
-
   <div class="goal-box">
     <div class="goal-header">
       <span class="goal-title">Annual Profit Goal</span>
       <span class="goal-amount" id="goal-text">—</span>
     </div>
     <div class="progress-bar"><div class="progress-fill" id="goal-fill" style="width: 0%;"></div></div>
-    <div class="goal-footer">
-      <span id="goal-current">—</span>
-      <span id="goal-remaining">—</span>
-    </div>
+    <div class="goal-footer"><span id="goal-current">—</span><span id="goal-remaining">—</span></div>
   </div>
 
   <div class="stat-grid" style="margin-bottom: 18px;">
-    <div class="stat-card"><div class="stat-label">Total Income (YTD)</div><div class="stat-value" id="a-income">—</div></div>
-    <div class="stat-card"><div class="stat-label">Total Expenses (YTD)</div><div class="stat-value" id="a-expense">—</div></div>
+    <div class="stat-card"><div class="stat-label">Total Income (FY)</div><div class="stat-value" id="a-income">—</div></div>
+    <div class="stat-card"><div class="stat-label">Total Expenses (FY)</div><div class="stat-value" id="a-expense">—</div></div>
     <div class="stat-card"><div class="stat-label">Profit / Loss</div><div class="stat-value positive" id="a-profit">—</div></div>
     <div class="stat-card"><div class="stat-label">Profit Margin</div><div class="stat-value" id="a-margin">—</div></div>
   </div>
 
-  <h3>Monthly Overview</h3>
+  <h3>Monthly Overview <span id="fiscal-label" style="font-weight: 400; color: #888; text-transform: none;"></span></h3>
   <div class="table-wrap">
     <table>
-      <thead>
-        <tr>
-          <th>Month</th>
-          <th class="numeric">Income</th>
-          <th class="numeric">Expense</th>
-          <th class="numeric">Profit</th>
-          <th class="numeric">Margin</th>
-        </tr>
-      </thead>
-      <tbody id="monthly-overview"><tr><td colspan="5" class="loading">No data yet…</td></tr></tbody>
+      <thead><tr><th>Month</th><th class="numeric">Income</th><th class="numeric">Expense</th><th class="numeric">Profit</th><th class="numeric">Margin</th></tr></thead>
+      <tbody id="monthly-overview"><tr><td colspan="5" class="loading">Loading…</td></tr></tbody>
       <tfoot id="monthly-overview-foot"></tfoot>
     </table>
   </div>
 
   <div class="two-col" style="margin-top: 16px;">
     <div>
-      <h3>Top 20 Income Sources (YTD)</h3>
+      <h3>Top 20 Income Sources (FY)</h3>
       <div class="table-wrap">
         <table>
           <thead><tr><th style="width:32px">#</th><th>Category</th><th class="numeric">Amount</th><th class="numeric">%</th></tr></thead>
-          <tbody id="a-top-income"><tr><td colspan="4" class="loading">No data yet…</td></tr></tbody>
+          <tbody id="a-top-income"><tr><td colspan="4" class="loading">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
     <div>
-      <h3>Top 20 Expense Sources (YTD)</h3>
+      <h3>Top 20 Expense Sources (FY)</h3>
       <div class="table-wrap">
         <table>
           <thead><tr><th style="width:32px">#</th><th>Category</th><th class="numeric">Amount</th><th class="numeric">%</th></tr></thead>
-          <tbody id="a-top-expense"><tr><td colspan="4" class="loading">No data yet…</td></tr></tbody>
+          <tbody id="a-top-expense"><tr><td colspan="4" class="loading">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -305,11 +284,14 @@
 </div>
 
 <script>
-const DASHBOARD_PASSWORD = "fbw2026";
+// ============================================================
+// CONFIG — UPDATE THESE TWO VALUES
+// ============================================================
+const DASHBOARD_PASSWORD = "fbw2026";  // <-- CHANGE THIS
+const APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";  // <-- PASTE YOUR URL
+// ============================================================
 
-// Phase 2: paste your deployed Google Apps Script Web App URL here.
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzvcgLw3wKST_NyounR3Dk-uWkFuByTYgU_3h-D-TnPnJtpafTULi9yrxQyGJlA7Cw5LQ/exec";
-
+// Password gate
 function checkPassword() {
   const input = document.getElementById('gate-input').value;
   const err = document.getElementById('gate-error');
@@ -331,6 +313,7 @@ if (sessionStorage.getItem('fbw_unlocked') === 'yes') {
   document.getElementById('dashboard').style.display = 'block';
 }
 
+// Formatters
 const fmt = n => {
   if (n === null || n === undefined || isNaN(n)) return '—';
   const sign = n < 0 ? '-' : '';
@@ -349,71 +332,23 @@ const fmtPct = n => {
   return (n * 100).toFixed(2) + '%';
 };
 
-const SAMPLE_DATA = {
-  todaySnapshot: { today: 4250, yesterday: 5800, last7days: 38420, monthSoFar: 41250, monthDailyAvg: 5156 },
-  prevMonth: { label: 'April 2026', gross: 155022, net: -15864 },
-  currMonth: { label: 'May 2026', gross: 41250, net: -5990 },
-  selectedMonth: {
-    total: 155021.87, avg: 5167.40, daysOperated: 30, best: 7704, worst: 2680,
-    income: 155021.87, expense: 170886.00, profit: -15864.13, margin: -0.1023,
-    incomeCat: [
-      { cat: 'Walk-in Cash', amt: 84394, pct: 0.5444 },
-      { cat: 'Grabfood', amt: 40275.87, pct: 0.2598 },
-      { cat: 'Gcash', amt: 28452, pct: 0.1835 },
-      { cat: 'Drinks', amt: 1400, pct: 0.0090 },
-      { cat: 'Gift Check', amt: 500, pct: 0.0032 }
-    ],
-    expenseCat: [
-      { cat: 'COGS', amt: 51546, pct: 0.3017 },
-      { cat: 'Wages & Salary', amt: 26389, pct: 0.1545 },
-      { cat: 'Loan', amt: 22000, pct: 0.1287 },
-      { cat: 'Monthly Dues', amt: 9050, pct: 0.0530 },
-      { cat: 'Personal', amt: 7704, pct: 0.0451 }
-    ],
-    daily: [
-      [1,'1 Apr (Wed)',4500],[2,'2 Apr (Thu)',5200],[3,'3 Apr (Fri)',6100],
-      [4,'4 Apr (Sat)',7704],[5,'5 Apr (Sun)',5800],[6,'6 Apr (Mon)',4200],
-      [7,'7 Apr (Tue)',3800],[8,'8 Apr (Wed)',4900],[9,'9 Apr (Thu)',5400],
-      [10,'10 Apr (Fri)',6800]
-    ]
-  },
-  annual: {
-    totalIncome: 1432563.29, totalExpense: 1290387.10, profit: 142176.19, margin: 0.0992,
-    goal: 600000, progress: 0.2370,
-    monthly: [
-      ['August', 216551.00, 193706.00, 22845.00, 0.1055],
-      ['September', 165243.00, 152055.32, 13187.68, 0.0798],
-      ['October', 144465.00, 171727.50, -27262.50, -0.1887],
-      ['November', 132431.00, 103692.50, 28738.50, 0.2170],
-      ['December', 138293.36, 117793.59, 20499.77, 0.1482],
-      ['January', 165940.97, 134155.00, 31785.97, 0.1915],
-      ['February', 158060.85, 130660.00, 27400.85, 0.1734],
-      ['March', 156556.24, 109721.09, 46835.15, 0.2992],
-      ['April', 155021.87, 170886.00, -15864.13, -0.1023]
-    ],
-    topIncome: [
-      ['Walk-in Cash', 990060.80, 0.6911],
-      ['Gcash', 279064.00, 0.1948],
-      ['Grabfood', 158329.49, 0.1105],
-      ['Drinks', 4439.00, 0.0031],
-      ['Gift Check', 500.00, 0.0003],
-      ['Maribank', 170.00, 0.0001]
-    ],
-    topExpense: [
-      ['COGS', 465085.10, 0.3604],
-      ['Wages & Salary', 255860.00, 0.1983],
-      ['Loan', 207510.51, 0.1608],
-      ['Store Upgrades', 85138.00, 0.0660],
-      ['Monthly Dues', 74500.00, 0.0577],
-      ['Personal', 48573.13, 0.0376],
-      ['COGS Outsource', 39536.80, 0.0306],
-      ['Spearhead POS', 37500.00, 0.0291],
-      ['Taxes', 20521.00, 0.0159],
-      ['Office Supplies', 20491.56, 0.0159]
-    ]
-  }
-};
+// Status badge
+function setStatus(state, text) {
+  const badge = document.getElementById('status-badge');
+  badge.className = 'status-badge status-' + state;
+  badge.textContent = text;
+}
 
+function showError(msg) {
+  const banner = document.getElementById('error-banner');
+  document.getElementById('error-detail').innerHTML = msg;
+  banner.classList.add('show');
+}
+function hideError() {
+  document.getElementById('error-banner').classList.remove('show');
+}
+
+// Render functions
 function renderHero(data) {
   document.getElementById('today-sales').textContent = fmtShort(data.todaySnapshot.today);
   document.getElementById('yesterday-sales').textContent = fmtShort(data.todaySnapshot.yesterday);
@@ -433,6 +368,7 @@ function renderHero(data) {
 }
 
 function renderSelectedMonth(m) {
+  if (!m) return;
   document.getElementById('m-total').textContent = fmtShort(m.total);
   document.getElementById('m-avg').textContent = fmtShort(m.avg);
   document.getElementById('m-days').textContent = m.daysOperated || '—';
@@ -443,18 +379,25 @@ function renderSelectedMonth(m) {
   document.getElementById('m-pnl-profit').textContent = fmt(m.profit);
   document.getElementById('m-pnl-profit-row').className = 'pnl-row ' + (m.profit >= 0 ? 'profit-row' : 'loss-row');
   document.getElementById('m-pnl-margin').textContent = fmtPct(m.margin);
-  document.getElementById('m-income-cat').innerHTML = m.incomeCat.map(r =>
-    `<tr><td>${r.cat}</td><td class="numeric">${fmt(r.amt)}</td><td class="numeric">${fmtPct(r.pct)}</td></tr>`
-  ).join('') || '<tr><td colspan="3" class="loading">No data</td></tr>';
-  document.getElementById('m-expense-cat').innerHTML = m.expenseCat.map(r =>
-    `<tr><td>${r.cat}</td><td class="numeric">${fmt(r.amt)}</td><td class="numeric">${fmtPct(r.pct)}</td></tr>`
-  ).join('') || '<tr><td colspan="3" class="loading">No data</td></tr>';
-  document.getElementById('m-daily').innerHTML = m.daily.map(d =>
-    `<tr><td>${d[0]}</td><td>${d[1]}</td><td class="numeric">${fmt(d[2])}</td></tr>`
-  ).join('') || '<tr><td colspan="3" class="loading">No data</td></tr>';
+
+  const incHTML = (m.incomeCat || []).map(r =>
+    `<tr><td>${escapeHtml(r.cat)}</td><td class="numeric">${fmt(r.amt)}</td><td class="numeric">${fmtPct(r.pct)}</td></tr>`
+  ).join('');
+  document.getElementById('m-income-cat').innerHTML = incHTML || '<tr><td colspan="3" class="loading">No income this month</td></tr>';
+
+  const expHTML = (m.expenseCat || []).map(r =>
+    `<tr><td>${escapeHtml(r.cat)}</td><td class="numeric">${fmt(r.amt)}</td><td class="numeric">${fmtPct(r.pct)}</td></tr>`
+  ).join('');
+  document.getElementById('m-expense-cat').innerHTML = expHTML || '<tr><td colspan="3" class="loading">No expenses this month</td></tr>';
+
+  const dailyHTML = (m.daily || []).map(d =>
+    `<tr><td>${d[0]}</td><td>${escapeHtml(d[1])}</td><td class="numeric ${d[2] === 0 ? 'skeleton' : ''}">${d[2] === 0 ? '—' : fmt(d[2])}</td></tr>`
+  ).join('');
+  document.getElementById('m-daily').innerHTML = dailyHTML || '<tr><td colspan="3" class="loading">No daily data</td></tr>';
 }
 
 function renderAnnual(a) {
+  if (!a) return;
   document.getElementById('a-income').textContent = fmtShort(a.totalIncome);
   document.getElementById('a-expense').textContent = fmtShort(a.totalExpense);
   const ap = document.getElementById('a-profit');
@@ -462,66 +405,99 @@ function renderAnnual(a) {
   ap.className = 'stat-value ' + (a.profit >= 0 ? 'positive' : 'negative');
   document.getElementById('a-margin').textContent = fmtPct(a.margin);
   document.getElementById('goal-text').textContent = fmtShort(a.goal);
-  const fillPct = Math.max(0, Math.min(100, a.progress * 100));
+  const fillPct = Math.max(0, Math.min(100, (a.progress || 0) * 100));
   document.getElementById('goal-fill').style.width = fillPct + '%';
   document.getElementById('goal-current').textContent = fmt(a.profit) + ' earned (' + fmtPct(a.progress) + ')';
   const remaining = a.goal - a.profit;
   document.getElementById('goal-remaining').textContent = (remaining > 0 ? fmt(remaining) + ' to go' : 'Goal reached!');
-  document.getElementById('monthly-overview').innerHTML = a.monthly.map(r =>
-    `<tr><td>${r[0]}</td><td class="numeric">${fmt(r[1])}</td><td class="numeric">${fmt(r[2])}</td><td class="numeric ${r[3] >= 0 ? 'pos' : 'neg'}">${fmt(r[3])}</td><td class="numeric">${fmtPct(r[4])}</td></tr>`
+
+  if (a.fiscalYear) {
+    document.getElementById('fiscal-label').textContent = '(FY' + a.fiscalYear + ': Aug ' + (a.fiscalYear - 1) + ' – Jul ' + a.fiscalYear + ')';
+  }
+
+  const rows = (a.monthly || []).map(r =>
+    `<tr><td>${escapeHtml(r[0])}</td><td class="numeric">${fmt(r[1])}</td><td class="numeric">${fmt(r[2])}</td><td class="numeric ${r[3] >= 0 ? 'pos' : 'neg'}">${fmt(r[3])}</td><td class="numeric">${fmtPct(r[4])}</td></tr>`
   ).join('');
-  const ti = a.monthly.reduce((s, r) => s + r[1], 0);
-  const te = a.monthly.reduce((s, r) => s + r[2], 0);
-  const tp = a.monthly.reduce((s, r) => s + r[3], 0);
+  document.getElementById('monthly-overview').innerHTML = rows || '<tr><td colspan="5" class="loading">No data</td></tr>';
+
+  const ti = (a.monthly || []).reduce((s, r) => s + r[1], 0);
+  const te = (a.monthly || []).reduce((s, r) => s + r[2], 0);
+  const tp = (a.monthly || []).reduce((s, r) => s + r[3], 0);
   const tm = ti > 0 ? tp / ti : 0;
   document.getElementById('monthly-overview-foot').innerHTML =
     `<tr><td>TOTAL</td><td class="numeric">${fmt(ti)}</td><td class="numeric">${fmt(te)}</td><td class="numeric ${tp >= 0 ? 'pos' : 'neg'}">${fmt(tp)}</td><td class="numeric">${fmtPct(tm)}</td></tr>`;
-  document.getElementById('a-top-income').innerHTML = a.topIncome.map((r, i) =>
-    `<tr><td>${i+1}</td><td>${r[0]}</td><td class="numeric">${fmt(r[1])}</td><td class="numeric">${fmtPct(r[2])}</td></tr>`
-  ).join('');
-  document.getElementById('a-top-expense').innerHTML = a.topExpense.map((r, i) =>
-    `<tr><td>${i+1}</td><td>${r[0]}</td><td class="numeric">${fmt(r[1])}</td><td class="numeric">${fmtPct(r[2])}</td></tr>`
-  ).join('');
+
+  document.getElementById('a-top-income').innerHTML = (a.topIncome || []).map((r, i) =>
+    `<tr><td>${i+1}</td><td>${escapeHtml(r[0])}</td><td class="numeric">${fmt(r[1])}</td><td class="numeric">${fmtPct(r[2])}</td></tr>`
+  ).join('') || '<tr><td colspan="4" class="loading">No data</td></tr>';
+
+  document.getElementById('a-top-expense').innerHTML = (a.topExpense || []).map((r, i) =>
+    `<tr><td>${i+1}</td><td>${escapeHtml(r[0])}</td><td class="numeric">${fmt(r[1])}</td><td class="numeric">${fmtPct(r[2])}</td></tr>`
+  ).join('') || '<tr><td colspan="4" class="loading">No data</td></tr>';
 }
 
-async function loadData() {
-  const month = document.getElementById('month-pick')?.value || '';
-  const year = document.getElementById('year-pick')?.value || '';
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('PASTE_YOUR_APPS_SCRIPT')) {
-    // Fallback while Apps Script is not connected yet.
-    const data = SAMPLE_DATA;
-    renderHero(data);
-    renderSelectedMonth(data.selectedMonth);
-    renderAnnual(data.annual);
-    document.getElementById('last-updated-time').textContent = 'Sample data only — Apps Script URL not connected';
-    return;
+// Fetch data from Apps Script
+async function fetchAPI(params = '') {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('PASTE_YOUR')) {
+    throw new Error('APPS_SCRIPT_URL is not configured. Edit index.html and replace PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE with your deployed Web App URL.');
   }
+  const url = APPS_SCRIPT_URL + (params ? (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + params : '');
+  const res = await fetch(url, { method: 'GET' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Unknown error from Apps Script');
+  return json.data;
+}
+
+// Load all data
+async function loadData() {
+  hideError();
+  setStatus('loading', 'Loading…');
+  document.getElementById('refresh-btn').disabled = true;
 
   try {
-    document.getElementById('last-updated-time').textContent = 'Loading live Google Sheet data...';
-    const url = `${APPS_SCRIPT_URL}?month=${encodeURIComponent(month)}&year=${encodeURIComponent(year)}&t=${Date.now()}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`API returned ${response.status}`);
-    const data = await response.json();
-    if (!data.ok) throw new Error(data.error || 'Apps Script returned an error');
+    const monthSel = parseInt(document.getElementById('month-pick').value, 10);
+    const yearSel = parseInt(document.getElementById('year-pick').value, 10);
+    const params = `month=${monthSel}&year=${yearSel}`;
+    const data = await fetchAPI(params);
 
     renderHero(data);
     renderSelectedMonth(data.selectedMonth);
     renderAnnual(data.annual);
 
-    const now = data.generatedAt ? new Date(data.generatedAt) : new Date();
-    document.getElementById('last-updated-time').textContent = now.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    // Set picker to actual selected month if returned
+    if (data.selectedMonth && data.selectedMonth.label) {
+      // (already in sync since we sent the params)
+    }
+
+    const now = new Date();
+    document.getElementById('last-updated-time').textContent =
+      now.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    setStatus('ok', 'Live');
   } catch (err) {
+    setStatus('error', 'Error');
+    showError('<code>' + escapeHtml(err.message) + '</code><br><br>Common fixes:<br>• Make sure APPS_SCRIPT_URL is set in index.html<br>• Verify the Apps Script Web App is deployed with "Anyone" access<br>• Check that Income and Expenses tabs exist in your Sheet');
     console.error(err);
-    document.getElementById('last-updated-time').textContent = 'Error loading live data. Check Apps Script URL/deployment.';
-    alert('Dashboard data did not load. Check Apps Script deployment and URL. Error: ' + err.message);
+  } finally {
+    document.getElementById('refresh-btn').disabled = false;
   }
 }
 
+// Month picker — refetch on change
 document.getElementById('month-pick').addEventListener('change', loadData);
 document.getElementById('year-pick').addEventListener('change', loadData);
 
+// Set picker default to previous month
+const today = new Date();
+const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+document.getElementById('month-pick').value = prevMonthDate.getMonth() + 1;
+document.getElementById('year-pick').value = prevMonthDate.getFullYear();
+
+// Initial load if already unlocked
 if (sessionStorage.getItem('fbw_unlocked') === 'yes') loadData();
 </script>
 </body>
